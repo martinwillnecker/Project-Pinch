@@ -63,7 +63,7 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
         if (cooldownRemaining > 0f)
             return;
 
-        Debug.Log($"Usaste {assignedSkill.skillName}");
+        SkillExecutor.Instance.TryCast(assignedSkill);
 
         StartCooldown(assignedSkill.cooldown);
     }

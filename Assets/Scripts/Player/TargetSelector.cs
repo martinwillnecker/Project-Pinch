@@ -2,9 +2,11 @@ using UnityEngine;
 
 public class TargetSelector : MonoBehaviour
 {
-    public Camera mainCamera;
+    [SerializeField] private Targetable currentTarget;
 
-    private Targetable currentTarget;
+    public Targetable CurrentTarget => currentTarget;
+
+    public Camera mainCamera;
 
     private void Awake()
     {
@@ -24,13 +26,11 @@ public class TargetSelector : MonoBehaviour
 
     private void SelectTarget()
     {
-        Ray ray =
-            mainCamera.ScreenPointToRay(Input.mousePosition);
+        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
 
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
-            Targetable target =
-                hit.collider.GetComponent<Targetable>();
+            Targetable target = hit.collider.GetComponent<Targetable>();
 
             if (target != null)
             {
@@ -48,18 +48,17 @@ public class TargetSelector : MonoBehaviour
     }
 
     private void SetTarget(Targetable target)
-{
-    if (currentTarget != null)
     {
-        currentTarget.SetSelected(false);
+        if (currentTarget != null)
+        {
+            currentTarget.SetSelected(false);
+        }
+
+        currentTarget = target;
+        currentTarget.SetSelected(true);
+
+        TargetManager.Instance.SetTarget(currentTarget.gameObject);
     }
-
-    currentTarget = target;
-    currentTarget.SetSelected(true);
-
-
-    TargetManager.Instance.SetTarget(currentTarget.gameObject);
-}
 
     private void ClearTarget()
     {
