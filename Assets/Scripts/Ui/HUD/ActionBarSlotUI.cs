@@ -13,6 +13,7 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
     [SerializeField] private Image cooldownOverlay;
     [SerializeField] private TMP_Text keybindText;
     [SerializeField] private TMP_Text cooldownText;
+    [SerializeField] private Image highlightBorder;
 
     [Header("Config")]
     [SerializeField] private int slotIndex;
@@ -20,11 +21,12 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
     private KeyCode assignedKey;
     private bool isListeningForKey = false;
 
-    private float cooldownDuration = 0f;
-    private float cooldownRemaining = 0f;
+    private SkillCooldownManager cooldownManager;
 
     private void Start()
     {
+        cooldownManager = FindFirstObjectByType<SkillCooldownManager>();
+
         LoadKeybind();
         UpdateKeybindText();
 
@@ -33,6 +35,15 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
 
         if (cooldownText != null)
             cooldownText.text = "";
+
+        if (highlightBorder != null)
+        {
+            highlightBorder.gameObject.SetActive(false);
+            highlightBorder.raycastTarget = false;
+            highlightBorder.transform.SetAsLastSibling();
+        }
+
+        RefreshIcon();
     }
 
     private void Update()
@@ -40,16 +51,16 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
         HandleInput();
         HandleKeybindRebind();
         UpdateCooldown();
+        UpdateHighlight();
     }
 
     private void HandleInput()
     {
-        if (isListeningForKey) return;
+        if (isListeningForKey)
+            return;
 
         if (Input.GetKeyDown(assignedKey))
-        {
             TryUseAbility();
-        }
     }
 
     private void TryUseAbility()
@@ -60,23 +71,18 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
             return;
         }
 
-        if (cooldownRemaining > 0f)
+        if (SkillExecutor.Instance == null)
+        {
+            Debug.LogWarning("No existe SkillExecutor en la escena.");
             return;
+        }
 
         SkillExecutor.Instance.TryCast(assignedSkill);
-
-        StartCooldown(assignedSkill.cooldown);
-    }
-
-    private void StartCooldown(float duration)
-    {
-        cooldownDuration = duration;
-        cooldownRemaining = duration;
     }
 
     private void UpdateCooldown()
     {
-        if (cooldownRemaining <= 0f)
+        if (assignedSkill == null)
         {
             if (cooldownOverlay != null)
                 cooldownOverlay.fillAmount = 0f;
@@ -87,15 +93,38 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
             return;
         }
 
-        cooldownRemaining -= Time.deltaTime;
+        if (cooldownManager == null)
+            cooldownManager = FindFirstObjectByType<SkillCooldownManager>();
 
-        float fill = cooldownRemaining / cooldownDuration;
+        if (cooldownManager == null)
+            return;
+
+        float remaining = cooldownManager.GetSkillCooldownRemaining(assignedSkill);
+        float fill = cooldownManager.GetSkillCooldownPercent(assignedSkill);
 
         if (cooldownOverlay != null)
             cooldownOverlay.fillAmount = fill;
 
         if (cooldownText != null)
-            cooldownText.text = Mathf.CeilToInt(cooldownRemaining).ToString();
+            cooldownText.text = remaining > 0f
+                ? Mathf.CeilToInt(remaining).ToString()
+                : "";
+    }
+
+    private void UpdateHighlight()
+    {
+        if (highlightBorder == null)
+            return;
+
+        bool isSelected =
+            SkillExecutor.Instance != null &&
+            SkillExecutor.Instance.IsAiming &&
+            SkillExecutor.Instance.PendingSkill == assignedSkill;
+
+        highlightBorder.gameObject.SetActive(isSelected);
+
+        if (isSelected)
+            highlightBorder.transform.SetAsLastSibling();
     }
 
     public void StartListeningForKey()
@@ -108,7 +137,8 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
 
     private void HandleKeybindRebind()
     {
-        if (!isListeningForKey) return;
+        if (!isListeningForKey)
+            return;
 
         foreach (KeyCode keyCode in System.Enum.GetValues(typeof(KeyCode)))
         {
@@ -172,16 +202,30 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
 
     public void OnDrop(PointerEventData eventData)
     {
-        if (SkillDragManager.DraggedSkill == null) return;
+        if (SkillDragManager.DraggedSkill == null)
+            return;
 
         assignedSkill = SkillDragManager.DraggedSkill;
-
-        if (iconImage != null)
-        {
-            iconImage.enabled = true;
-            iconImage.sprite = assignedSkill.icon;
-        }
+        RefreshIcon();
 
         Debug.Log($"Skill {assignedSkill.skillName} asignada al slot {slotIndex}");
+    }
+
+    private void RefreshIcon()
+    {
+        if (iconImage == null)
+            return;
+
+        iconImage.enabled = true;
+
+        if (assignedSkill == null || assignedSkill.icon == null)
+        {
+            iconImage.sprite = null;
+            iconImage.color = new Color(1f, 1f, 1f, 0.08f);
+            return;
+        }
+
+        iconImage.sprite = assignedSkill.icon;
+        iconImage.color = Color.white;
     }
 }

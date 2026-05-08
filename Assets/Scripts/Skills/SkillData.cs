@@ -20,6 +20,7 @@ public class SkillData : ScriptableObject
 
     [Header("Combat")]
     public float cooldown = 1f;
+    public bool usesGlobalCooldown = true;
     public float castTime = 0f;
     public int manaCost = 0;
     public float range = 2f;
