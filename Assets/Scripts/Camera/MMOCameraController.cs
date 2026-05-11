@@ -39,7 +39,8 @@ public class MMOCameraController : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (target == null) return;
+        if (target == null)
+            return;
 
         Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
         Vector3 offset = rotation * new Vector3(0f, 0f, -distance);
@@ -50,22 +51,24 @@ public class MMOCameraController : MonoBehaviour
 
     private void HandleRotation()
     {
-    if (!Input.GetMouseButton(1)) return;
+        if (!Input.GetMouseButton(1))
+            return;
 
-    float mouseX = Input.GetAxis("Mouse X");
-    float mouseY = Input.GetAxis("Mouse Y");
+        float mouseX = Input.GetAxisRaw("Mouse X");
+        float mouseY = Input.GetAxisRaw("Mouse Y");
 
-    yaw += mouseX * rotationSpeed;
-    pitch -= mouseY * rotationSpeed;
+        yaw += mouseX * rotationSpeed * Time.deltaTime;
+        pitch -= mouseY * rotationSpeed * Time.deltaTime;
 
-    pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+        pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
     }
 
     private void HandleZoom()
     {
         float scroll = Input.GetAxisRaw("Mouse ScrollWheel");
 
-        if (Mathf.Abs(scroll) < 0.01f) return;
+        if (Mathf.Abs(scroll) < 0.01f)
+            return;
 
         distance -= scroll * zoomSpeed;
         distance = Mathf.Clamp(distance, minDistance, maxDistance);

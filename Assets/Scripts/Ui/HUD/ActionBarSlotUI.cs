@@ -23,6 +23,10 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
 
     private SkillCooldownManager cooldownManager;
 
+    private bool lastHighlightState = false;
+    private float lastCooldownFill = -1f;
+    private string lastCooldownText = "";
+
     private void Start()
     {
         cooldownManager = FindFirstObjectByType<SkillCooldownManager>();
@@ -38,9 +42,10 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
 
         if (highlightBorder != null)
         {
-            highlightBorder.gameObject.SetActive(false);
+            Color color = highlightBorder.color;
+            color.a = 0f;
+            highlightBorder.color = color;
             highlightBorder.raycastTarget = false;
-            highlightBorder.transform.SetAsLastSibling();
         }
 
         RefreshIcon();
@@ -84,31 +89,46 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
     {
         if (assignedSkill == null)
         {
-            if (cooldownOverlay != null)
-                cooldownOverlay.fillAmount = 0f;
-
-            if (cooldownText != null)
-                cooldownText.text = "";
-
+            SetCooldownVisual(0f, "");
             return;
         }
 
         if (cooldownManager == null)
-            cooldownManager = FindFirstObjectByType<SkillCooldownManager>();
-
-        if (cooldownManager == null)
             return;
 
-        float remaining = cooldownManager.GetSkillCooldownRemaining(assignedSkill);
-        float fill = cooldownManager.GetSkillCooldownPercent(assignedSkill);
+        float remaining =
+            cooldownManager.GetSkillCooldownRemaining(assignedSkill);
 
+        float fill =
+            cooldownManager.GetSkillCooldownPercent(assignedSkill);
+
+        string text =
+            remaining > 0f
+            ? Mathf.CeilToInt(remaining).ToString()
+            : "";
+
+        SetCooldownVisual(fill, text);
+    }
+
+    private void SetCooldownVisual(float fill, string text)
+    {
         if (cooldownOverlay != null)
-            cooldownOverlay.fillAmount = fill;
+        {
+            if (!Mathf.Approximately(lastCooldownFill, fill))
+            {
+                cooldownOverlay.fillAmount = fill;
+                lastCooldownFill = fill;
+            }
+        }
 
         if (cooldownText != null)
-            cooldownText.text = remaining > 0f
-                ? Mathf.CeilToInt(remaining).ToString()
-                : "";
+        {
+            if (lastCooldownText != text)
+            {
+                cooldownText.text = text;
+                lastCooldownText = text;
+            }
+        }
     }
 
     private void UpdateHighlight()
@@ -121,10 +141,14 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
             SkillExecutor.Instance.IsAiming &&
             SkillExecutor.Instance.PendingSkill == assignedSkill;
 
-        highlightBorder.gameObject.SetActive(isSelected);
+        if (isSelected == lastHighlightState)
+            return;
 
-        if (isSelected)
-            highlightBorder.transform.SetAsLastSibling();
+        Color color = highlightBorder.color;
+        color.a = isSelected ? 0.8f : 0f;
+        highlightBorder.color = color;
+
+        lastHighlightState = isSelected;
     }
 
     public void StartListeningForKey()
@@ -155,14 +179,24 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
 
     private void SaveKeybind()
     {
-        PlayerPrefs.SetString($"ActionBarSlot_{slotIndex}_Keybind", assignedKey.ToString());
+        PlayerPrefs.SetString(
+            $"ActionBarSlot_{slotIndex}_Keybind",
+            assignedKey.ToString()
+        );
+
         PlayerPrefs.Save();
     }
 
     private void LoadKeybind()
     {
-        string defaultKey = GetDefaultKeyForSlot(slotIndex).ToString();
-        string savedKey = PlayerPrefs.GetString($"ActionBarSlot_{slotIndex}_Keybind", defaultKey);
+        string defaultKey =
+            GetDefaultKeyForSlot(slotIndex).ToString();
+
+        string savedKey =
+            PlayerPrefs.GetString(
+                $"ActionBarSlot_{slotIndex}_Keybind",
+                defaultKey
+            );
 
         if (System.Enum.TryParse(savedKey, out KeyCode loadedKey))
             assignedKey = loadedKey;
@@ -206,9 +240,8 @@ public class ActionBarSlotUI : MonoBehaviour, IDropHandler
             return;
 
         assignedSkill = SkillDragManager.DraggedSkill;
-        RefreshIcon();
 
-        Debug.Log($"Skill {assignedSkill.skillName} asignada al slot {slotIndex}");
+        RefreshIcon();
     }
 
     private void RefreshIcon()

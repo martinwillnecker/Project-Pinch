@@ -16,10 +16,32 @@ public class Health : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
+        TakeDamage(amount, Color.white, false);
+    }
+
+    public void TakeDamage(
+        int amount,
+        Color damageColor,
+        bool isCrit
+    )
+    {
         currentHealth -= amount;
         currentHealth = Mathf.Max(currentHealth, 0);
 
-        Debug.Log($"{gameObject.name} recibió {amount} daño. HP: {currentHealth}/{maxHealth}");
+        Debug.Log(
+            $"{gameObject.name} recibió {amount} daño. " +
+            $"HP: {currentHealth}/{maxHealth}"
+        );
+
+        if (FloatingTextSpawner.Instance != null)
+        {
+            FloatingTextSpawner.Instance.SpawnDamageText(
+                transform.position,
+                amount,
+                isCrit,
+                damageColor
+            );
+        }
 
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
 

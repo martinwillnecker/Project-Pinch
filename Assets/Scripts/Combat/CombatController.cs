@@ -6,6 +6,8 @@ public class CombatController : MonoBehaviour
     [Header("Basic Attack")]
     public int basicAttackDamage = 20;
     public float attackRange = 3f;
+    public float basicAttackAngle = 70f;
+    public Transform facingReference;
 
     [Header("Crowd Control")]
     public float stunDuration = 2f;
@@ -36,6 +38,9 @@ public class CombatController : MonoBehaviour
     {
         selfStatusEffects = GetComponent<StatusEffectController>();
 
+        if (facingReference == null)
+            facingReference = transform;
+
         cooldownTimers["BasicAttack"] = 0f;
         cooldownTimers["Stun"] = 0f;
         cooldownTimers["Root"] = 0f;
@@ -53,31 +58,21 @@ public class CombatController : MonoBehaviour
 
     private void UpdateCooldowns()
     {
-        List<string> keys =
-            new List<string>(cooldownTimers.Keys);
+        List<string> keys = new List<string>(cooldownTimers.Keys);
 
         foreach (string key in keys)
         {
             if (cooldownTimers[key] > 0f)
-            {
-                cooldownTimers[key] -= Time.deltaTime;
-
-                cooldownTimers[key] =
-                    Mathf.Max(cooldownTimers[key], 0f);
-            }
+                cooldownTimers[key] = Mathf.Max(cooldownTimers[key] - Time.deltaTime, 0f);
         }
     }
 
     private bool IsOnCooldown(string skillName)
     {
-        return cooldownTimers.ContainsKey(skillName)
-            && cooldownTimers[skillName] > 0f;
+        return cooldownTimers.ContainsKey(skillName) && cooldownTimers[skillName] > 0f;
     }
 
-    private void StartCooldown(
-        string skillName,
-        float duration
-    )
+    private void StartCooldown(string skillName, float duration)
     {
         cooldownTimers[skillName] = duration;
     }
@@ -98,29 +93,38 @@ public class CombatController : MonoBehaviour
         return selfStatusEffects.CanAct();
     }
 
-    private GameObject FindNearestEnemyInRange()
+    private GameObject FindNearestEnemyInFront()
     {
-        GameObject[] enemies =
-            GameObject.FindGameObjectsWithTag("Enemy");
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
 
         GameObject nearestEnemy = null;
-
         float nearestDistance = Mathf.Infinity;
+
+        Vector3 forward = facingReference.forward;
+        forward.y = 0f;
+        forward.Normalize();
 
         foreach (GameObject enemy in enemies)
         {
             if (!enemy.activeSelf)
                 continue;
 
-            float distance = Vector3.Distance(
-                transform.position,
-                enemy.transform.position
-            );
+            Vector3 directionToEnemy = enemy.transform.position - transform.position;
+            directionToEnemy.y = 0f;
 
-            if (
-                distance <= attackRange
-                && distance < nearestDistance
-            )
+            float distance = directionToEnemy.magnitude;
+
+            if (distance > attackRange)
+                continue;
+
+            directionToEnemy.Normalize();
+
+            float angle = Vector3.Angle(forward, directionToEnemy);
+
+            if (angle > basicAttackAngle * 0.5f)
+                continue;
+
+            if (distance < nearestDistance)
             {
                 nearestEnemy = enemy;
                 nearestDistance = distance;
@@ -135,126 +139,68 @@ public class CombatController : MonoBehaviour
         string skillName = "BasicAttack";
 
         if (!CanAct())
-        {
-            Debug.Log(
-                "No podés atacar: stunned o silenced."
-            );
-
             return;
-        }
 
         if (IsOnCooldown(skillName))
-        {
-            Debug.Log(
-                $"Ataque básico en cooldown: " +
-                $"{GetCooldownRemaining(skillName):0.0}s"
-            );
-
             return;
-        }
 
-        GameObject enemy =
-            FindNearestEnemyInRange();
+        GameObject enemy = FindNearestEnemyInFront();
 
         if (enemy == null)
-        {
-            Debug.Log("No hay enemigos en rango.");
             return;
-        }
 
-        Health health =
-            enemy.GetComponent<Health>();
+        Health health = enemy.GetComponent<Health>();
 
         if (health == null)
-        {
-            Debug.Log(
-                "El enemigo no tiene Health."
-            );
-
             return;
-        }
 
         float attackMultiplier = 1f;
 
         if (selfStatusEffects != null)
-        {
-            attackMultiplier =
-                selfStatusEffects.GetAttackMultiplier();
-        }
+            attackMultiplier = selfStatusEffects.GetAttackMultiplier();
 
-        int finalDamage = Mathf.RoundToInt(
-            basicAttackDamage * attackMultiplier
-        );
+        int finalDamage = Mathf.RoundToInt(basicAttackDamage * attackMultiplier);
 
-        StatusEffectController enemyStatus =
-            enemy.GetComponent<StatusEffectController>();
+        StatusEffectController enemyStatus = enemy.GetComponent<StatusEffectController>();
 
         if (enemyStatus != null)
         {
-            float defenseMultiplier =
-                enemyStatus.GetDefenseMultiplier();
-
-            finalDamage = Mathf.RoundToInt(
-                finalDamage / defenseMultiplier
-            );
+            float defenseMultiplier = enemyStatus.GetDefenseMultiplier();
+            finalDamage = Mathf.RoundToInt(finalDamage / defenseMultiplier);
         }
 
-        health.TakeDamage(finalDamage);
-
-        StartCooldown(
-            skillName,
-            basicAttackCooldown
+        health.TakeDamage(
+            finalDamage,
+            new Color(1f, 0.9f, 0.3f),
+            false
         );
+
+        StartCooldown(skillName, basicAttackCooldown);
     }
 
     public void ApplyStun()
     {
-        ApplyEffectSkill(
-            "Stun",
-            StatusEffectType.Stun,
-            stunDuration,
-            stunCooldown
-        );
+        ApplyEffectSkill("Stun", StatusEffectType.Stun, stunDuration, stunCooldown);
     }
 
     public void ApplyRoot()
     {
-        ApplyEffectSkill(
-            "Root",
-            StatusEffectType.Root,
-            rootDuration,
-            rootCooldown
-        );
+        ApplyEffectSkill("Root", StatusEffectType.Root, rootDuration, rootCooldown);
     }
 
     public void ApplySlow()
     {
-        ApplyEffectSkill(
-            "Slow",
-            StatusEffectType.Slow,
-            slowDuration,
-            slowCooldown
-        );
+        ApplyEffectSkill("Slow", StatusEffectType.Slow, slowDuration, slowCooldown);
     }
 
     public void ApplySilence()
     {
-        ApplyEffectSkill(
-            "Silence",
-            StatusEffectType.Silence,
-            silenceDuration,
-            silenceCooldown
-        );
+        ApplyEffectSkill("Silence", StatusEffectType.Silence, silenceDuration, silenceCooldown);
     }
 
     public void ApplyAttackDebuff()
     {
-        ApplyEffectSkill(
-            "AttackDebuff",
-            StatusEffectType.AttackDebuff,
-            debuffDuration,
-            attackDebuffCooldown
-        );
+        ApplyEffectSkill("AttackDebuff", StatusEffectType.AttackDebuff, debuffDuration, attackDebuffCooldown);
     }
 
     public void ApplyAttackBuff()
@@ -262,44 +208,17 @@ public class CombatController : MonoBehaviour
         string skillName = "AttackBuff";
 
         if (!CanAct())
-        {
-            Debug.Log(
-                "No podés aplicar buff."
-            );
-
             return;
-        }
 
         if (IsOnCooldown(skillName))
-        {
-            Debug.Log(
-                $"Attack buff en cooldown: " +
-                $"{GetCooldownRemaining(skillName):0.0}s"
-            );
-
             return;
-        }
 
         if (selfStatusEffects == null)
-        {
-            Debug.Log(
-                "El Player no tiene StatusEffectController."
-            );
-
             return;
-        }
 
-        selfStatusEffects.ApplyEffect(
-            StatusEffectType.AttackBuff,
-            buffDuration
-        );
+        selfStatusEffects.ApplyEffect(StatusEffectType.AttackBuff, buffDuration);
 
-        StartCooldown(
-            skillName,
-            attackBuffCooldown
-        );
-
-        Debug.Log("Attack buff aplicado.");
+        StartCooldown(skillName, attackBuffCooldown);
     }
 
     public void CleanseSelf()
@@ -307,32 +226,14 @@ public class CombatController : MonoBehaviour
         string skillName = "Cleanse";
 
         if (IsOnCooldown(skillName))
-        {
-            Debug.Log(
-                $"Cleanse en cooldown: " +
-                $"{GetCooldownRemaining(skillName):0.0}s"
-            );
-
             return;
-        }
 
         if (selfStatusEffects == null)
-        {
-            Debug.Log(
-                "El Player no tiene StatusEffectController."
-            );
-
             return;
-        }
 
         selfStatusEffects.RemoveNegativeEffects();
 
-        StartCooldown(
-            skillName,
-            cleanseCooldown
-        );
-
-        Debug.Log("Cleanse usado.");
+        StartCooldown(skillName, cleanseCooldown);
     }
 
     private void ApplyEffectSkill(
@@ -343,56 +244,23 @@ public class CombatController : MonoBehaviour
     )
     {
         if (!CanAct())
-        {
-            Debug.Log(
-                $"No podés usar {skillName}: stunned o silenced."
-            );
-
             return;
-        }
 
         if (IsOnCooldown(skillName))
-        {
-            Debug.Log(
-                $"{skillName} en cooldown: " +
-                $"{GetCooldownRemaining(skillName):0.0}s"
-            );
-
             return;
-        }
 
-        GameObject enemy =
-            FindNearestEnemyInRange();
+        GameObject enemy = FindNearestEnemyInFront();
 
         if (enemy == null)
-        {
-            Debug.Log(
-                $"No hay enemigos en rango para {skillName}."
-            );
-
             return;
-        }
 
-        StatusEffectController enemyStatus =
-            enemy.GetComponent<StatusEffectController>();
+        StatusEffectController enemyStatus = enemy.GetComponent<StatusEffectController>();
 
         if (enemyStatus == null)
-        {
-            Debug.Log(
-                "El enemigo no tiene StatusEffectController."
-            );
-
             return;
-        }
 
-        enemyStatus.ApplyEffect(
-            effectType,
-            effectDuration
-        );
+        enemyStatus.ApplyEffect(effectType, effectDuration);
 
-        StartCooldown(
-            skillName,
-            cooldownDuration
-        );
+        StartCooldown(skillName, cooldownDuration);
     }
 }

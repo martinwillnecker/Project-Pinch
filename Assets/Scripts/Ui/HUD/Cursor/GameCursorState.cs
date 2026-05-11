@@ -1,6 +1,7 @@
 public enum GameCursorState
 {
     Default,
-    Dragging,
+    DraggingItem,
+    DraggingSpell,
     SpellSelected
 }
