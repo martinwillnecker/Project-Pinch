@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using ProjectPinch.Stats.Core;
 
 public class CombatController : MonoBehaviour
 {
@@ -9,27 +10,18 @@ public class CombatController : MonoBehaviour
     public float basicAttackAngle = 70f;
     public Transform facingReference;
 
-    [Header("Crowd Control")]
-    public float stunDuration = 2f;
-    public float rootDuration = 3f;
-    public float slowDuration = 4f;
-    public float silenceDuration = 2f;
-
-    [Header("Buffs / Debuffs")]
-    public float buffDuration = 5f;
-    public float debuffDuration = 5f;
-
     [Header("Cooldowns")]
     public float basicAttackCooldown = 1f;
-    public float stunCooldown = 8f;
-    public float rootCooldown = 6f;
-    public float cleanseCooldown = 12f;
+    public float stunCooldown = 5f;
+    public float rootCooldown = 5f;
+    public float cleanseCooldown = 8f;
     public float slowCooldown = 5f;
-    public float silenceCooldown = 10f;
-    public float attackBuffCooldown = 15f;
+    public float silenceCooldown = 5f;
+    public float attackBuffCooldown = 8f;
     public float attackDebuffCooldown = 8f;
 
     private StatusEffectController selfStatusEffects;
+    private CharacterStats characterStats;
 
     private Dictionary<string, float> cooldownTimers =
         new Dictionary<string, float>();
@@ -37,6 +29,7 @@ public class CombatController : MonoBehaviour
     private void Awake()
     {
         selfStatusEffects = GetComponent<StatusEffectController>();
+        characterStats = GetComponent<CharacterStats>();
 
         if (facingReference == null)
             facingReference = transform;
@@ -53,214 +46,321 @@ public class CombatController : MonoBehaviour
 
     private void Update()
     {
-        UpdateCooldowns();
-    }
-
-    private void UpdateCooldowns()
-    {
         List<string> keys = new List<string>(cooldownTimers.Keys);
 
         foreach (string key in keys)
         {
             if (cooldownTimers[key] > 0f)
-                cooldownTimers[key] = Mathf.Max(cooldownTimers[key] - Time.deltaTime, 0f);
-        }
-    }
-
-    private bool IsOnCooldown(string skillName)
-    {
-        return cooldownTimers.ContainsKey(skillName) && cooldownTimers[skillName] > 0f;
-    }
-
-    private void StartCooldown(string skillName, float duration)
-    {
-        cooldownTimers[skillName] = duration;
-    }
-
-    private float GetCooldownRemaining(string skillName)
-    {
-        if (!cooldownTimers.ContainsKey(skillName))
-            return 0f;
-
-        return cooldownTimers[skillName];
-    }
-
-    private bool CanAct()
-    {
-        if (selfStatusEffects == null)
-            return true;
-
-        return selfStatusEffects.CanAct();
-    }
-
-    private GameObject FindNearestEnemyInFront()
-    {
-        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-
-        GameObject nearestEnemy = null;
-        float nearestDistance = Mathf.Infinity;
-
-        Vector3 forward = facingReference.forward;
-        forward.y = 0f;
-        forward.Normalize();
-
-        foreach (GameObject enemy in enemies)
-        {
-            if (!enemy.activeSelf)
-                continue;
-
-            Vector3 directionToEnemy = enemy.transform.position - transform.position;
-            directionToEnemy.y = 0f;
-
-            float distance = directionToEnemy.magnitude;
-
-            if (distance > attackRange)
-                continue;
-
-            directionToEnemy.Normalize();
-
-            float angle = Vector3.Angle(forward, directionToEnemy);
-
-            if (angle > basicAttackAngle * 0.5f)
-                continue;
-
-            if (distance < nearestDistance)
             {
-                nearestEnemy = enemy;
-                nearestDistance = distance;
+                cooldownTimers[key] -= Time.deltaTime;
             }
         }
+    }
 
-        return nearestEnemy;
+    private bool IsOnCooldown(string abilityName)
+    {
+        return cooldownTimers[abilityName] > 0f;
+    }
+
+    private void StartCooldown(string abilityName, float duration)
+    {
+        cooldownTimers[abilityName] = duration;
     }
 
     public void BasicAttack()
     {
-        string skillName = "BasicAttack";
-
-        if (!CanAct())
-            return;
-
-        if (IsOnCooldown(skillName))
-            return;
-
-        GameObject enemy = FindNearestEnemyInFront();
-
-        if (enemy == null)
-            return;
-
-        Health health = enemy.GetComponent<Health>();
-
-        if (health == null)
-            return;
-
-        float attackMultiplier = 1f;
-
-        if (selfStatusEffects != null)
-            attackMultiplier = selfStatusEffects.GetAttackMultiplier();
-
-        int finalDamage = Mathf.RoundToInt(basicAttackDamage * attackMultiplier);
-
-        StatusEffectController enemyStatus = enemy.GetComponent<StatusEffectController>();
-
-        if (enemyStatus != null)
+        if (IsOnCooldown("BasicAttack"))
         {
-            float defenseMultiplier = enemyStatus.GetDefenseMultiplier();
-            finalDamage = Mathf.RoundToInt(finalDamage / defenseMultiplier);
+            Debug.Log("Basic Attack en cooldown.");
+            return;
         }
 
-        health.TakeDamage(
-            finalDamage,
-            new Color(1f, 0.9f, 0.3f),
-            false
-        );
+        if (selfStatusEffects != null && selfStatusEffects.IsStunned())
+        {
+            Debug.Log("No podés atacar mientras estás stun.");
+            return;
+        }
 
-        StartCooldown(skillName, basicAttackCooldown);
+        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
+
+        foreach (Collider hit in hits)
+        {
+            if (hit.gameObject == gameObject)
+                continue;
+
+            if (!hit.CompareTag("Enemy"))
+                continue;
+
+            Vector3 directionToTarget =
+                (hit.transform.position - transform.position).normalized;
+
+            float angle =
+                Vector3.Angle(facingReference.forward, directionToTarget);
+
+            if (angle > basicAttackAngle * 0.5f)
+                continue;
+
+            CharacterStats targetStats =
+            hit.GetComponent<CharacterStats>();
+
+            if (targetStats != null)
+            {
+                float attackMultiplier = 1f;
+
+                if (selfStatusEffects != null)
+                {
+                    attackMultiplier =
+                        selfStatusEffects.GetAttackMultiplier();
+                }
+
+                int baseDamage = basicAttackDamage;
+
+                if (characterStats != null &&
+                    characterStats.FinalStats != null)
+                {
+                    baseDamage =
+                        characterStats.FinalStats.physicalAttack;
+                }
+
+                int finalDamage =
+                    Mathf.RoundToInt(baseDamage * attackMultiplier);
+
+                targetStats.TakeDamage(finalDamage);
+
+                Debug.Log(
+                    $"Basic Attack hit {hit.name} for {finalDamage} damage."
+                );
+
+                StartCooldown("BasicAttack", basicAttackCooldown);
+
+                return;
+            }
+        }
+
+        Debug.Log("No enemy hit.");
+        StartCooldown("BasicAttack", basicAttackCooldown);
     }
 
     public void ApplyStun()
     {
-        ApplyEffectSkill("Stun", StatusEffectType.Stun, stunDuration, stunCooldown);
+        if (IsOnCooldown("Stun"))
+        {
+            Debug.Log("Stun en cooldown.");
+            return;
+        }
+
+        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
+
+        foreach (Collider hit in hits)
+        {
+            if (!hit.CompareTag("Enemy"))
+                continue;
+
+            StatusEffectController status =
+                hit.GetComponent<StatusEffectController>();
+
+            if (status != null)
+            {
+                status.ApplyStun(2f);
+
+                Debug.Log($"Stunned {hit.name}");
+
+                StartCooldown("Stun", stunCooldown);
+
+                return;
+            }
+        }
     }
 
     public void ApplyRoot()
     {
-        ApplyEffectSkill("Root", StatusEffectType.Root, rootDuration, rootCooldown);
+        if (IsOnCooldown("Root"))
+        {
+            Debug.Log("Root en cooldown.");
+            return;
+        }
+
+        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
+
+        foreach (Collider hit in hits)
+        {
+            if (!hit.CompareTag("Enemy"))
+                continue;
+
+            StatusEffectController status =
+                hit.GetComponent<StatusEffectController>();
+
+            if (status != null)
+            {
+                status.ApplyRoot(3f);
+
+                Debug.Log($"Rooted {hit.name}");
+
+                StartCooldown("Root", rootCooldown);
+
+                return;
+            }
+        }
     }
 
     public void ApplySlow()
     {
-        ApplyEffectSkill("Slow", StatusEffectType.Slow, slowDuration, slowCooldown);
+        if (IsOnCooldown("Slow"))
+        {
+            Debug.Log("Slow en cooldown.");
+            return;
+        }
+
+        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
+
+        foreach (Collider hit in hits)
+        {
+            if (!hit.CompareTag("Enemy"))
+                continue;
+
+            StatusEffectController status =
+                hit.GetComponent<StatusEffectController>();
+
+            if (status != null)
+            {
+                status.ApplySlow(0.5f, 4f);
+
+                Debug.Log($"Slowed {hit.name}");
+
+                StartCooldown("Slow", slowCooldown);
+
+                return;
+            }
+        }
     }
 
     public void ApplySilence()
     {
-        ApplyEffectSkill("Silence", StatusEffectType.Silence, silenceDuration, silenceCooldown);
+        if (IsOnCooldown("Silence"))
+        {
+            Debug.Log("Silence en cooldown.");
+            return;
+        }
+
+        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
+
+        foreach (Collider hit in hits)
+        {
+            if (!hit.CompareTag("Enemy"))
+                continue;
+
+            StatusEffectController status =
+                hit.GetComponent<StatusEffectController>();
+
+            if (status != null)
+            {
+                status.ApplySilence(3f);
+
+                Debug.Log($"Silenced {hit.name}");
+
+                StartCooldown("Silence", silenceCooldown);
+
+                return;
+            }
+        }
     }
 
-    public void ApplyAttackDebuff()
+    public void ApplyCleanse()
     {
-        ApplyEffectSkill("AttackDebuff", StatusEffectType.AttackDebuff, debuffDuration, attackDebuffCooldown);
+        if (IsOnCooldown("Cleanse"))
+        {
+            Debug.Log("Cleanse en cooldown.");
+            return;
+        }
+
+        if (selfStatusEffects != null)
+        {
+            selfStatusEffects.Cleanse();
+
+            Debug.Log("Cleanse aplicado.");
+
+            StartCooldown("Cleanse", cleanseCooldown);
+        }
     }
 
     public void ApplyAttackBuff()
     {
-        string skillName = "AttackBuff";
-
-        if (!CanAct())
+        if (IsOnCooldown("AttackBuff"))
+        {
+            Debug.Log("Attack Buff en cooldown.");
             return;
+        }
 
-        if (IsOnCooldown(skillName))
-            return;
+        if (selfStatusEffects != null)
+        {
+            selfStatusEffects.ApplyAttackBuff(1.5f, 5f);
 
-        if (selfStatusEffects == null)
-            return;
+            Debug.Log("Attack Buff aplicado.");
 
-        selfStatusEffects.ApplyEffect(StatusEffectType.AttackBuff, buffDuration);
-
-        StartCooldown(skillName, attackBuffCooldown);
+            StartCooldown("AttackBuff", attackBuffCooldown);
+        }
     }
 
-    public void CleanseSelf()
+    public void ApplyAttackDebuff()
     {
-        string skillName = "Cleanse";
-
-        if (IsOnCooldown(skillName))
+        if (IsOnCooldown("AttackDebuff"))
+        {
+            Debug.Log("Attack Debuff en cooldown.");
             return;
+        }
 
-        if (selfStatusEffects == null)
-            return;
+        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
 
-        selfStatusEffects.RemoveNegativeEffects();
+        foreach (Collider hit in hits)
+        {
+            if (!hit.CompareTag("Enemy"))
+                continue;
 
-        StartCooldown(skillName, cleanseCooldown);
+            StatusEffectController status =
+                hit.GetComponent<StatusEffectController>();
+
+            if (status != null)
+            {
+                status.ApplyAttackDebuff(0.5f, 5f);
+
+                Debug.Log($"Attack Debuff aplicado a {hit.name}");
+
+                StartCooldown(
+                    "AttackDebuff",
+                    attackDebuffCooldown
+                );
+
+                return;
+            }
+        }
     }
 
-    private void ApplyEffectSkill(
-        string skillName,
-        StatusEffectType effectType,
-        float effectDuration,
-        float cooldownDuration
-    )
+    private void OnDrawGizmosSelected()
     {
-        if (!CanAct())
-            return;
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, attackRange);
 
-        if (IsOnCooldown(skillName))
-            return;
+        if (facingReference != null)
+        {
+            Vector3 leftBoundary =
+                Quaternion.Euler(0, -basicAttackAngle / 2, 0)
+                * facingReference.forward;
 
-        GameObject enemy = FindNearestEnemyInFront();
+            Vector3 rightBoundary =
+                Quaternion.Euler(0, basicAttackAngle / 2, 0)
+                * facingReference.forward;
 
-        if (enemy == null)
-            return;
+            Gizmos.color = Color.yellow;
 
-        StatusEffectController enemyStatus = enemy.GetComponent<StatusEffectController>();
+            Gizmos.DrawRay(
+                transform.position,
+                leftBoundary * attackRange
+            );
 
-        if (enemyStatus == null)
-            return;
-
-        enemyStatus.ApplyEffect(effectType, effectDuration);
-
-        StartCooldown(skillName, cooldownDuration);
+            Gizmos.DrawRay(
+                transform.position,
+                rightBoundary * attackRange
+            );
+        }
     }
 }

@@ -1,74 +1,95 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class TargetSelector : MonoBehaviour
 {
     [SerializeField] private Targetable currentTarget;
-
     public Targetable CurrentTarget => currentTarget;
 
-    public Camera mainCamera;
+    [SerializeField] private Camera mainCamera;
 
     private void Awake()
     {
         if (mainCamera == null)
-        {
             mainCamera = Camera.main;
-        }
     }
 
     private void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (!Input.GetMouseButtonDown(0))
+            return;
+
+        if (EventSystem.current != null &&
+            EventSystem.current.IsPointerOverGameObject())
+            return;
+
+        if (SkillExecutor.Instance != null &&
+            SkillExecutor.Instance.IsAiming)
         {
-            SelectTarget();
+            SkillExecutor.Instance.ConfirmCast();
+            return;
         }
+
+        SelectTarget();
     }
 
     private void SelectTarget()
     {
-        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        if (mainCamera == null)
+            return;
 
-        if (Physics.Raycast(ray, out RaycastHit hit))
+        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        RaycastHit[] hits = Physics.RaycastAll(ray, 500f);
+
+        if (hits.Length == 0)
         {
-            Targetable target = hit.collider.GetComponent<Targetable>();
+            ClearTarget();
+            return;
+        }
+
+        System.Array.Sort(
+            hits,
+            (a, b) => a.distance.CompareTo(b.distance)
+        );
+
+        foreach (RaycastHit hit in hits)
+        {
+            Targetable target =
+                hit.collider.GetComponentInParent<Targetable>();
 
             if (target != null)
             {
                 SetTarget(target);
-            }
-            else
-            {
-                ClearTarget();
+                return;
             }
         }
-        else
-        {
-            ClearTarget();
-        }
+
+        ClearTarget();
     }
 
-    private void SetTarget(Targetable target)
+    public void SetTarget(Targetable target)
     {
+        if (target == null)
+            return;
+
         if (currentTarget != null)
-        {
             currentTarget.SetSelected(false);
-        }
 
         currentTarget = target;
         currentTarget.SetSelected(true);
 
-        TargetManager.Instance.SetTarget(currentTarget.gameObject);
+        if (TargetManager.Instance != null)
+            TargetManager.Instance.SetTarget(currentTarget.gameObject);
     }
 
-    private void ClearTarget()
+    public void ClearTarget()
     {
         if (currentTarget != null)
-        {
             currentTarget.SetSelected(false);
-        }
 
         currentTarget = null;
 
-        TargetManager.Instance.ClearTarget();
+        if (TargetManager.Instance != null)
+            TargetManager.Instance.ClearTarget();
     }
 }

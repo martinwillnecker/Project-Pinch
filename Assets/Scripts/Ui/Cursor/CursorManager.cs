@@ -31,23 +31,6 @@ public class CursorManager : MonoBehaviour
         SetCursor(GameCursorState.Default);
     }
 
-    private void Update()
-    {
-        // DEBUG TEMPORAL
-
-        if (Input.GetKeyDown(KeyCode.Alpha1))
-            SetCursor(GameCursorState.Default);
-
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-            SetCursor(GameCursorState.DraggingItem);
-
-        if (Input.GetKeyDown(KeyCode.Alpha3))
-            SetCursor(GameCursorState.DraggingSpell);
-
-        if (Input.GetKeyDown(KeyCode.Alpha4))
-            SetCursor(GameCursorState.SpellSelected);
-    }
-
     public void SetCursor(GameCursorState state)
     {
         currentState = state;
@@ -82,7 +65,7 @@ public class CursorManager : MonoBehaviour
         Cursor.SetCursor(
             selectedCursor,
             hotspot,
-            CursorMode.ForceSoftware
+            CursorMode.Auto
         );
 
         Debug.Log($"Cursor changed to: {state}");

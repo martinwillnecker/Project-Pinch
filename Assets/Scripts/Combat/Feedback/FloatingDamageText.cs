@@ -7,7 +7,7 @@ public class FloatingDamageText : MonoBehaviour
     [SerializeField] private TextMeshProUGUI damageText;
 
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 1.2f;
+    [SerializeField] private float moveSpeed = 40f;
     [SerializeField] private float lifetime = 1f;
 
     [Header("Scale")]
@@ -20,7 +20,13 @@ public class FloatingDamageText : MonoBehaviour
     private void Awake()
     {
         if (damageText == null)
-            damageText = GetComponent<TextMeshProUGUI>();
+            damageText = GetComponentInChildren<TextMeshProUGUI>();
+
+        if (damageText == null)
+        {
+            Debug.LogWarning("FloatingDamageText: no encontré TextMeshProUGUI.");
+            return;
+        }
 
         startColor = damageText.color;
     }
@@ -32,28 +38,38 @@ public class FloatingDamageText : MonoBehaviour
 
     private void Update()
     {
+        if (damageText == null)
+            return;
+
         timer += Time.deltaTime;
 
         transform.position += Vector3.up * moveSpeed * Time.deltaTime;
 
         float alpha = Mathf.Lerp(1f, 0f, timer / lifetime);
-        damageText.color = new Color(startColor.r, startColor.g, startColor.b, alpha);
+
+        damageText.color =
+            new Color(startColor.r, startColor.g, startColor.b, alpha);
 
         if (timer >= lifetime)
             Destroy(gameObject);
     }
 
-   public void Setup(int damage, bool isCrit, Color textColor)
+    public void Setup(int damage, bool isCrit, Color textColor)
     {
-    if (damageText == null)
-        damageText = GetComponent<TextMeshProUGUI>();
+        if (damageText == null)
+            damageText = GetComponentInChildren<TextMeshProUGUI>();
 
-    damageText.text = isCrit ? damage + "!" : damage.ToString();
+        if (damageText == null)
+        {
+            Debug.LogWarning("FloatingDamageText: damageText es NULL en Setup.");
+            return;
+        }
 
-    damageText.color = textColor;
+        damageText.text = isCrit ? $"{damage}!" : damage.ToString();
+        damageText.color = textColor;
+        startColor = textColor;
 
-    startColor = textColor;
-
-    transform.localScale = Vector3.one * (isCrit ? critScale : normalScale);
+        transform.localScale =
+            Vector3.one * (isCrit ? critScale : normalScale);
     }
 }

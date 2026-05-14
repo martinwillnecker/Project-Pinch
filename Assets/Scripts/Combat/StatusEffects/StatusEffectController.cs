@@ -3,7 +3,8 @@ using UnityEngine;
 
 public class StatusEffectController : MonoBehaviour
 {
-    private Dictionary<StatusEffectType, float> activeEffects = new Dictionary<StatusEffectType, float>();
+    private Dictionary<StatusEffectType, float> activeEffects =
+        new Dictionary<StatusEffectType, float>();
 
     private void Update()
     {
@@ -12,8 +13,11 @@ public class StatusEffectController : MonoBehaviour
 
     private void UpdateEffects()
     {
-        List<StatusEffectType> keys = new List<StatusEffectType>(activeEffects.Keys);
-        List<StatusEffectType> expiredEffects = new List<StatusEffectType>();
+        List<StatusEffectType> keys =
+            new List<StatusEffectType>(activeEffects.Keys);
+
+        List<StatusEffectType> expiredEffects =
+            new List<StatusEffectType>();
 
         foreach (StatusEffectType effectType in keys)
         {
@@ -28,15 +32,23 @@ public class StatusEffectController : MonoBehaviour
         foreach (StatusEffectType effectType in expiredEffects)
         {
             activeEffects.Remove(effectType);
-            Debug.Log($"{gameObject.name} perdió efecto: {effectType}");
+
+            Debug.Log(
+                $"{gameObject.name} perdió efecto: {effectType}"
+            );
         }
     }
 
-    public void ApplyEffect(StatusEffectType effectType, float duration)
+    public void ApplyEffect(
+        StatusEffectType effectType,
+        float duration
+    )
     {
         activeEffects[effectType] = duration;
 
-        Debug.Log($"{gameObject.name} recibió efecto: {effectType} por {duration}s");
+        Debug.Log(
+            $"{gameObject.name} recibió efecto: {effectType} por {duration}s"
+        );
     }
 
     public void RemoveEffect(StatusEffectType effectType)
@@ -44,7 +56,10 @@ public class StatusEffectController : MonoBehaviour
         if (activeEffects.ContainsKey(effectType))
         {
             activeEffects.Remove(effectType);
-            Debug.Log($"{gameObject.name} limpió efecto: {effectType}");
+
+            Debug.Log(
+                $"{gameObject.name} limpió efecto: {effectType}"
+            );
         }
     }
 
@@ -64,6 +79,26 @@ public class StatusEffectController : MonoBehaviour
         return activeEffects.ContainsKey(effectType);
     }
 
+    public bool IsStunned()
+    {
+        return HasEffect(StatusEffectType.Stun);
+    }
+
+    public bool IsRooted()
+    {
+        return HasEffect(StatusEffectType.Root);
+    }
+
+    public bool IsSilenced()
+    {
+        return HasEffect(StatusEffectType.Silence);
+    }
+
+    public bool IsSlowed()
+    {
+        return HasEffect(StatusEffectType.Slow);
+    }
+
     public bool CanMove()
     {
         return !HasEffect(StatusEffectType.Stun)
@@ -81,8 +116,13 @@ public class StatusEffectController : MonoBehaviour
         if (HasEffect(StatusEffectType.SpeedBuff))
             return 1.3f;
 
-        if (HasEffect(StatusEffectType.Slow) || HasEffect(StatusEffectType.SpeedDebuff))
+        if (
+            HasEffect(StatusEffectType.Slow) ||
+            HasEffect(StatusEffectType.SpeedDebuff)
+        )
+        {
             return 0.5f;
+        }
 
         return 1f;
     }
@@ -107,5 +147,63 @@ public class StatusEffectController : MonoBehaviour
             return 0.7f;
 
         return 1f;
+    }
+
+    // =========================
+    // Helper Methods
+    // =========================
+
+    public void ApplyStun(float duration)
+    {
+        ApplyEffect(StatusEffectType.Stun, duration);
+    }
+
+    public void ApplyRoot(float duration)
+    {
+        ApplyEffect(StatusEffectType.Root, duration);
+    }
+
+   public void ApplySlow(float multiplier, float duration)
+{
+    ApplyEffect(StatusEffectType.Slow, duration);
+}
+
+    public void ApplySilence(float duration)
+    {
+        ApplyEffect(StatusEffectType.Silence, duration);
+    }
+
+   public void ApplyAttackBuff(float multiplier, float duration)
+    {
+        ApplyEffect(StatusEffectType.AttackBuff, duration);
+    }
+
+    public void ApplyAttackDebuff(float multiplier, float duration)
+{
+    ApplyEffect(StatusEffectType.AttackDebuff, duration);
+}
+    public void ApplyDefenseBuff(float duration)
+    {
+        ApplyEffect(StatusEffectType.DefenseBuff, duration);
+    }
+
+    public void ApplyDefenseDebuff(float duration)
+    {
+        ApplyEffect(StatusEffectType.DefenseDebuff, duration);
+    }
+
+    public void ApplySpeedBuff(float duration)
+    {
+        ApplyEffect(StatusEffectType.SpeedBuff, duration);
+    }
+
+    public void ApplySpeedDebuff(float duration)
+    {
+        ApplyEffect(StatusEffectType.SpeedDebuff, duration);
+    }
+
+    public void Cleanse()
+    {
+        RemoveNegativeEffects();
     }
 }

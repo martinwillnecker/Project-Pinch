@@ -4770,7 +4770,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SkillExecutor
   playerTransform: {fileID: 1513630446}
-  targetSelector: {fileID: 1513630449}
   cooldownManager: {fileID: 0}
 --- !u!4 &1028234579
 Transform:
@@ -7688,7 +7687,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SkillExecutor
   playerTransform: {fileID: 1513630446}
-  targetSelector: {fileID: 1513630449}
   cooldownManager: {fileID: 1513630454}
 --- !u!1 &1555420841
 GameObject:
@@ -8888,10 +8886,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6196bbc0e2c12334bb49568605baa7a4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CursorManager
-  defaultCursor: {fileID: 2800000, guid: 269539ac0509a0d4e924a1a1f8785ac6, type: 3}
+  defaultCursor: {fileID: 2800000, guid: 5a5aa5534d473884aa5a0c1f6d376d3a, type: 3}
   draggingItemCursor: {fileID: 2800000, guid: 269539ac0509a0d4e924a1a1f8785ac6, type: 3}
   draggingSpellCursor: {fileID: 2800000, guid: fd455086b5fc9c646ba6e1a88e66ad07, type: 3}
-  spellSelectedCursor: {fileID: 2800000, guid: 667ff2a196037584eace93468a890e1c, type: 3}
+  spellSelectedCursor: {fileID: 2800000, guid: a2bf3bf92d53a994d9d3a1656fe296e5, type: 3}
   hotspot: {x: 8, y: 8}
 --- !u!1 &1882622336
 GameObject:

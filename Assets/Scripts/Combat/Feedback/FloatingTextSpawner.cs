@@ -26,37 +26,47 @@ public class FloatingTextSpawner : MonoBehaviour
 
         if (mainCamera == null)
             mainCamera = Camera.main;
+
+        if (targetCanvas == null)
+            targetCanvas = FindFirstObjectByType<Canvas>();
     }
 
-    public void SpawnDamageText(Vector3 worldPosition, int damage, bool isCrit, Color textColor)
+    public void SpawnDamageText(
+        Vector3 worldPosition,
+        int damage,
+        bool isCrit,
+        Color textColor
+    )
     {
         if (damageTextPrefab == null)
         {
-            Debug.LogWarning("Damage Text Prefab is missing in FloatingTextSpawner.");
+            Debug.LogWarning("Damage Text Prefab is missing.");
             return;
         }
 
         if (targetCanvas == null)
         {
-            Debug.LogWarning("Target Canvas is missing in FloatingTextSpawner.");
+            Debug.LogWarning("Target Canvas is missing.");
             return;
         }
 
         if (mainCamera == null)
         {
-            Debug.LogWarning("Main Camera is missing in FloatingTextSpawner.");
+            Debug.LogWarning("Main Camera is missing.");
             return;
         }
 
-        Vector3 screenPosition = mainCamera.WorldToScreenPoint(worldPosition + worldOffset);
+        Vector3 screenPosition =
+            mainCamera.WorldToScreenPoint(worldPosition + worldOffset);
 
-        FloatingDamageText textInstance = Instantiate(
-            damageTextPrefab,
-            targetCanvas.transform
-        );
+        FloatingDamageText textInstance =
+            Instantiate(damageTextPrefab, targetCanvas.transform);
 
-        RectTransform rectTransform = textInstance.GetComponent<RectTransform>();
-        rectTransform.position = screenPosition;
+        RectTransform rectTransform =
+            textInstance.GetComponent<RectTransform>();
+
+        if (rectTransform != null)
+            rectTransform.position = screenPosition;
 
         textInstance.Setup(damage, isCrit, textColor);
 
